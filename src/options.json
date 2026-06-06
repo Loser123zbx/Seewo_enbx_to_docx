@@ -1,3 +1,5 @@
 {
+        "background_color":"#ffffff",
+        "only_output_text":false,
         "text_size_proportion":"0.3"
 }

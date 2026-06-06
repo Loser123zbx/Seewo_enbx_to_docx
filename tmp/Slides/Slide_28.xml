@@ -1,0 +1,13 @@
+﻿<Slide>
+  <Id>35c588990bf24052966ab068cf3d1d2c</Id>
+  <Width>1280</Width>
+  <Height>720</Height>
+  <KeepIndependentSize>False</KeepIndependentSize>
+  <Background>
+    <ColorBrush>#FFFFFFFF</ColorBrush>
+  </Background>
+  <Duration>5000000</Duration>
+  <ThemeForSlide>
+    <ThemeId>-1</ThemeId>
+  </ThemeForSlide>
+</Slide>

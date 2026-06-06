@@ -36,7 +36,7 @@ def hex_to_rgb(hex_color):
         except ValueError:
                 return (0, 0, 0)
 
-def convert_xml_to_docx(structured_data, output_path):
+def convert_xml_to_docx(structured_data, output_path=None, doc=None):
         """
         将 read_xml_to_sentence 返回的结构化数据转换为 docx 文件
         
@@ -50,7 +50,10 @@ def convert_xml_to_docx(structured_data, output_path):
         from docx.shared import Pt, RGBColor
         from read_xml import TextRunData
 
-        doc = Document()
+        created_doc = False
+        if doc is None:
+                doc = Document()
+                created_doc = True
         
         # 遍历每个文本框
         for textbox_index, textbox_lines in enumerate(structured_data):
@@ -109,11 +112,16 @@ def convert_xml_to_docx(structured_data, output_path):
                                 # 注意：Word 的 Highlight 颜色选项有限，这里仅做简单映射或忽略
                                 # 如果需要精确背景色，通常需要更复杂的 shading 设置，此处暂略以保持简洁
 
-        # 保存文档
-        doc.save(output_path)
-        print(f"文档已保存至: {output_path}")
+        # 保存文档（如果 caller 指定了 output_path 或我们自己创建了 doc）
+        if created_doc and output_path:
+                try:
+                        doc.save(output_path)
+                        print(f"文档已保存至: {output_path}")
+                except Exception as e:
+                        print(f"保存文档失败: {e}")
+                        raise
 
-def convert_xml_to_docx_English2ChineseMode(structured_data, output_path):
+def convert_xml_to_docx_English2ChineseMode(structured_data, output_path=None, doc=None):
         """
         将 read_xml_to_sentence 返回的结构化数据转换为 docx 文件
         特殊逻辑：如果只有两个文本框，则将对应行合并为中英对照
@@ -124,33 +132,28 @@ def convert_xml_to_docx_English2ChineseMode(structured_data, output_path):
         from read_xml import TextRunData
         from math import ceil
 
-        doc = Document()
+        created_doc = False
+        if doc is None:
+                doc = Document()
+                created_doc = True
 
-        # 判断是否只有两个文本框
-        if len(structured_data) != 2:
-                print("检测到文本框数量不为2，使用普通模式处理。")
-                convert_xml_to_docx(structured_data, output_path)
+        # 支持 structured_data 可能来自单个 slide（2 个文本框）或多个 slide 的情况。
+        # 我们按 slide 单位处理：如果 structured_data 看起来是多个文本框集合（len>2），
+        # 则逐个尝试按 2 个文本框为一组处理；否则直接按单个 slide 处理。
 
-        else:
-                print("检测到2个文本框，启用中英对照合并模式。")
-                en_box = structured_data[0]
-                cn_box = structured_data[1]
-                
-                # 获取最大行数，以较长的为准，防止漏掉
+        def _process_pair(en_box, cn_box):
                 max_lines = max(len(en_box), len(cn_box))
-                
                 for i in range(max_lines):
                         paragraph = doc.add_paragraph()
-                        
-                        # 处理英文部分
                         if i < len(en_box):
-                                en_line_runs = en_box[i]
-                                for run_data in en_line_runs:
-                                        text_content = run_data.text
+                                for run_data in en_box[i]:
+                                        try:
+                                                text_content = run_data.text
+                                        except Exception:
+                                                text_content = ''
                                         if not text_content or text_content.strip() == '':
                                                 continue
                                         run = paragraph.add_run(text_content)
-                                        # 应用英文格式
                                         if run_data.font_size > 0:
                                                 run.font.size = ceil(Pt(run_data.font_size)*float(text_size_proportion))
                                         if run_data.is_bold:
@@ -162,19 +165,16 @@ def convert_xml_to_docx_English2ChineseMode(structured_data, output_path):
                                         if run_data.foreground_color and run_data.foreground_color != "#FF000000":
                                                 rgb = hex_to_rgb(run_data.foreground_color)
                                                 run.font.color.rgb = RGBColor(*rgb)
-                                
-                                # 添加分隔符，可选
-                                separator = paragraph.add_run("    ") # 添加几个空格作为分隔
-                                
-                        # 处理中文部分
+                                paragraph.add_run("    ")
                         if i < len(cn_box):
-                                cn_line_runs = cn_box[i]
-                                for run_data in cn_line_runs:
-                                        text_content = run_data.text
+                                for run_data in cn_box[i]:
+                                        try:
+                                                text_content = run_data.text
+                                        except Exception:
+                                                text_content = ''
                                         if not text_content or text_content.strip() == '':
                                                 continue
                                         run = paragraph.add_run(text_content)
-                                        # 应用中文格式
                                         if run_data.font_size > 0:
                                                 run.font.size = ceil(Pt(run_data.font_size)*float(text_size_proportion))
                                         if run_data.is_bold:
@@ -187,9 +187,50 @@ def convert_xml_to_docx_English2ChineseMode(structured_data, output_path):
                                                 rgb = hex_to_rgb(run_data.foreground_color)
                                                 run.font.color.rgb = RGBColor(*rgb)
 
+        # If structured_data is a list of textboxes (possibly many), process accordingly
+        if isinstance(structured_data, list) and len(structured_data) > 0 and all(isinstance(x, list) for x in structured_data):
+                if len(structured_data) == 2 and all(isinstance(x[0] if x else [], list) for x in structured_data):
+                        en_box = structured_data[0]
+                        cn_box = structured_data[1]
+                        _process_pair(en_box, cn_box)
+                else:
+                        i = 0
+                        n = len(structured_data)
+                        while i < n:
+                                if i+1 < n:
+                                        en_box = structured_data[i]
+                                        cn_box = structured_data[i+1]
+                                        _process_pair(en_box, cn_box)
+                                        i += 2
+                                else:
+                                        # leftover single textbox, render normally
+                                        for line_runs in structured_data[i]:
+                                                p = doc.add_paragraph()
+                                                for run_data in line_runs:
+                                                        if not run_data.text or run_data.text.strip() == '':
+                                                                continue
+                                                        r = p.add_run(run_data.text)
+                                                        if run_data.font_size > 0:
+                                                                r.font.size = ceil(Pt(run_data.font_size)*float(text_size_proportion))
+                                                        if run_data.is_bold:
+                                                                r.font.bold = True
+                                                        if run_data.is_italic:
+                                                                r.font.italic = True
+                                                        if run_data.font_family:
+                                                                r.font.name = run_data.font_family
+                                                        if run_data.foreground_color and run_data.foreground_color != "#FF000000":
+                                                                rgb = hex_to_rgb(run_data.foreground_color)
+                                                                r.font.color.rgb = RGBColor(*rgb)
+                                        i += 1
+
         # 保存文档
-        doc.save(output_path)
-        print(f"文档已保存至: {output_path}")
+        if created_doc and output_path:
+                try:
+                        doc.save(output_path)
+                        print(f"文档已保存至: {output_path}")
+                except Exception as e:
+                        print(f"保存文档失败: {e}")
+                        raise
 
 if __name__ == '__main__':
         # 1. 导入解析函数

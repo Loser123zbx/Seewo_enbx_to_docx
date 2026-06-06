@@ -26,7 +26,7 @@ class running ( wx.Dialog ):
 
 		root = wx.BoxSizer(wx.HORIZONTAL)
 
-		self.progress_bitmap = wx.StaticBitmap(self, wx.ID_ANY, wx.Bitmap( u"progress.png", wx.BITMAP_TYPE_ANY ), wx.DefaultPosition, wx.DefaultSize, 0)
+		self.progress_bitmap = wx.StaticBitmap(self, wx.ID_ANY, wx.Bitmap( u"src/progress.png", wx.BITMAP_TYPE_ANY ), wx.DefaultPosition, wx.DefaultSize, 0)
 		root.Add(self.progress_bitmap, 0, 0, 5)
 
 		progressbar1 = wx.BoxSizer(wx.VERTICAL)
