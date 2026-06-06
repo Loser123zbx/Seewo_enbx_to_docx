@@ -1,0 +1,4 @@
+*.enbx
+/src/tmp/
+/.venv/
+/.idea/
