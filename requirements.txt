@@ -1,1 +1,2 @@
 python-docx
+wxpython == 4.1.1

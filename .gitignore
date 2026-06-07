@@ -2,4 +2,5 @@
 /src/tmp/
 /.venv/
 /.idea/
-/tmp/
+tmp/
+*.docx
